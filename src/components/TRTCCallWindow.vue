@@ -465,9 +465,23 @@ const remoteUsers = ref<Map<string, { videoAvailable: boolean; audioAvailable: b
 // ============================================
 
 const initSocket = () => {
-  socket = io(getApiUrl(), {
+  const apiUrl = getApiUrl();
+
+  // Log for debugging (will help identify mixed content issues)
+  console.log("🔌 Connecting to Socket.IO:", apiUrl);
+  console.log("🔒 Current page protocol:", window.location.protocol);
+
+  // Ensure secure connection in production
+  const isSecure = window.location.protocol === "https:";
+  const socketOptions: any = {
     transports: ["websocket", "polling"],
-  });
+    // Force secure connection when page is HTTPS
+    secure: isSecure,
+    // Reject unauthorized certificates in production
+    rejectUnauthorized: isSecure,
+  };
+
+  socket = io(apiUrl, socketOptions);
 
   socket.on("connect", () => {
     console.log("🔌 Socket connected:", socket?.id);
@@ -831,7 +845,14 @@ const handleActiveCallsVideoUpdate = async (data: any) => {
 
 const getUserSig = async (userId: string) => {
   try {
-    const response = await fetch(`${getApiUrl()}/getUserSig`, {
+    const apiUrl = getApiUrl();
+    const fetchUrl = `${apiUrl}/getUserSig`;
+
+    // Log for debugging mixed content issues
+    console.log("📡 Fetching UserSig from:", fetchUrl);
+    console.log("🔒 Page protocol:", window.location.protocol);
+
+    const response = await fetch(fetchUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId }),

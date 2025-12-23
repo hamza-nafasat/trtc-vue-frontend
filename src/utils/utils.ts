@@ -38,7 +38,7 @@ export const isMobile: boolean = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMo
 /**
  * Get API URL with proper HTTPS protocol enforcement
  * Ensures no mixed content issues in production
- * 
+ *
  * Rules:
  * - If page is loaded over HTTPS, ALL API URLs must be HTTPS
  * - If page is loaded over HTTP (dev), HTTP is allowed
@@ -71,6 +71,17 @@ export function getApiUrl(): string {
   if (isProduction && apiUrl.startsWith("http://")) {
     apiUrl = apiUrl.replace("http://", "https://");
     console.warn("⚠️ Mixed content prevented: HTTP API URL converted to HTTPS:", apiUrl);
+  }
+
+  // Final validation: In production, URL MUST be HTTPS
+  if (isProduction && !apiUrl.startsWith("https://")) {
+    console.error("❌ SECURITY ERROR: Production site requires HTTPS API URL, but got:", apiUrl);
+    console.error("❌ Please set VITE_API_URL in Vercel to use https:// protocol");
+  }
+
+  // Log the final URL being used (for debugging)
+  if (isProduction) {
+    console.log("✅ Using API URL:", apiUrl);
   }
 
   // If page is HTTP (development), allow HTTP API URL
