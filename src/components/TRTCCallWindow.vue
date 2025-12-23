@@ -375,6 +375,7 @@ import { useI18n } from "vue-i18n";
 import { io, Socket } from "socket.io-client";
 import TRTC from "trtc-sdk-v5";
 import appStore from "@/store/index";
+import { getApiUrl } from "@/utils/utils";
 
 // i18n
 const { t, locale } = useI18n();
@@ -464,7 +465,7 @@ const remoteUsers = ref<Map<string, { videoAvailable: boolean; audioAvailable: b
 // ============================================
 
 const initSocket = () => {
-  socket = io(import.meta.env.VITE_API_URL || "http://localhost:3000", {
+  socket = io(getApiUrl(), {
     transports: ["websocket", "polling"],
   });
 
@@ -830,7 +831,7 @@ const handleActiveCallsVideoUpdate = async (data: any) => {
 
 const getUserSig = async (userId: string) => {
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/getUserSig`, {
+    const response = await fetch(`${getApiUrl()}/getUserSig`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId }),
