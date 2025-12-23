@@ -1,0 +1,46 @@
+# === Dependencies ===
+node_modules/
+.pnpm-store/
+.yarn/
+.yarn-cache/
+
+# === Build Output ===
+dist/
+dist-ssr/
+build/
+
+# === Environment Variables ===
+
+# === Logs ===
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# === OS Files ===
+.DS_Store
+Thumbs.db
+
+# === Editor / IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === Cache ===
+.cache/
+.eslintcache
+
+# === Test Coverage ===
+coverage/
+
+# === Temporary Files ===
+*.log
+*.tmp
+*.temp
+
+# === Vite Specific ===
+.vite/
+
+# === Vue CLI Specific ===
+.cache-loader/
