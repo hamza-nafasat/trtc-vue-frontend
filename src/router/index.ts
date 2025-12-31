@@ -1,11 +1,15 @@
-import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router';
-import Index from '../views/Index.vue';
+import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
+import TRTCCallWindow from '../components/TRTCCallWindow.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
+    redirect: '/tencent-video-call',
+  },
+  {
+    path: '/tencent-video-call',
     name: 'home',
-    component: Index,
+    component: TRTCCallWindow,
   },
   {
     path: '/invite',
@@ -15,7 +19,7 @@ const routes: Array<RouteRecordRaw> = [
 ];
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes,
 });
 

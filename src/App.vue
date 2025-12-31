@@ -1,11 +1,11 @@
 <template>
   <div id="app">
-    <TRTCCallWindow />
+    <router-view />
   </div>
 </template>
 
 <script setup lang="ts">
-import TRTCCallWindow from './components/TRTCCallWindow.vue';
+// Router view will render the appropriate component based on the route
 </script>
 
 <style>
