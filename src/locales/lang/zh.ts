@@ -76,6 +76,16 @@ export default {
   english: "English",
   chinese: "中文",
 
+  // UI Settings
+  settings: "设置",
+  uiSettings: "界面设置",
+  uiWidth: "界面宽度",
+  uiHeight: "界面高度",
+  reset: "重置",
+  apply: "应用",
+  uiSizeUpdated: "界面大小已更新",
+  onlyAdminCanResize: "只有管理员可以调整界面大小",
+
   // ================================
   // ONE-TO-ONE TALK SYSTEM
   // ================================

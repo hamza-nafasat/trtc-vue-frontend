@@ -82,6 +82,12 @@ const appStore = defineStore("app", {
 
     // Fixed room ID from backend
     fixedRoomId: "main_broadcast_room",
+
+    // UI Size Control (admin-controlled)
+    uiSize: {
+      width: 500, // Default 500px
+      height: 500, // Default 500px
+    },
   }),
 
   getters: {
@@ -108,6 +114,18 @@ const appStore = defineStore("app", {
 
     // Get pending talk requests count (for server)
     pendingRequestsCount: (state) => state.serverState.talkRequests.length,
+
+    // Get UI size with constraints
+    constrainedWidth: (state) => {
+      const minWidth = 300;
+      const maxWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
+      return Math.max(minWidth, Math.min(state.uiSize.width, maxWidth));
+    },
+    constrainedHeight: (state) => {
+      const minHeight = 300;
+      const maxHeight = typeof window !== 'undefined' ? window.innerHeight : 1080;
+      return Math.max(minHeight, Math.min(state.uiSize.height, maxHeight));
+    },
   },
 
   actions: {
@@ -239,6 +257,17 @@ const appStore = defineStore("app", {
       this.activeCalls = [];
       this.serverUserId = null;
       this.serverIsPublishing = false;
+    },
+
+    // Update UI size (admin only)
+    setUiSize(width: number, height: number) {
+      const minWidth = 300;
+      const minHeight = 300;
+      const maxWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
+      const maxHeight = typeof window !== 'undefined' ? window.innerHeight : 1080;
+
+      this.uiSize.width = Math.max(minWidth, Math.min(width, maxWidth));
+      this.uiSize.height = Math.max(minHeight, Math.min(height, maxHeight));
     },
   },
 });

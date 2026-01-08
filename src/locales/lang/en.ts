@@ -76,13 +76,23 @@ export default {
   english: "English",
   chinese: "中文",
 
+  // UI Settings
+  settings: "Settings",
+  uiSettings: "UI Settings",
+  uiWidth: "UI Width",
+  uiHeight: "UI Height",
+  reset: "Reset",
+  apply: "Apply",
+  uiSizeUpdated: "UI size updated successfully",
+  onlyAdminCanResize: "Only admin can resize the UI",
+
   // ================================
   // ONE-TO-ONE TALK SYSTEM
   // ================================
 
   // Connection
-  connected: "Connected",
-  disconnected: "Disconnected",
+  connected: "",
+  disconnected: "",
 
   // Role Selection
   oneToOneTalk: "One-to-One Talk System",

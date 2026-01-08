@@ -1,9 +1,14 @@
 <template>
-  <div class="trtc-container">
+  <div class="trtc-container" :style="containerStyle">
     <!-- Language Switcher -->
     <div class="language-switcher">
       <button class="lang-btn" :class="{ active: currentLocale === 'en' }" @click="changeLanguage('en')">EN</button>
       <button class="lang-btn" :class="{ active: currentLocale === 'zh' }" @click="changeLanguage('zh')">中文</button>
+    </div>
+
+    <!-- Settings Button (Admin Only) -->
+    <div v-if="store.isServer" class="settings-button">
+      <button class="settings-btn" @click="showSettingsModal = true" :title="t('settings')">⚙️</button>
     </div>
 
     <!-- Connection Status -->
@@ -15,10 +20,7 @@
     <div v-if="!isInRoom" class="join-preview">
       <!-- Preview Header -->
       <div class="dashboard-header">
-        <h2>{{ t("appName") }}</h2>
-        <div class="stats">
-          <span class="stat">👥 0 {{ t("clients") }}</span>
-        </div>
+        <div class="stats"></div>
       </div>
 
       <!-- Preview Video Section -->
@@ -133,21 +135,7 @@
     <div v-if="isInRoom && store.isServer" class="server-dashboard">
       <!-- Header -->
       <div class="dashboard-header">
-        <div class="stats">
-          <span
-            class="stat clients-stat"
-            @click="toggleSidebar"
-            :title="sidebarOpen ? t('👥 Clients') : t('👥 Clients')"
-          >
-            👥 {{ store.serverState.totalClients }} {{ t("clients") }}
-          </span>
-          <span class="stat active-count" v-if="store.activeCalls.length > 0">
-            📞 {{ store.activeCalls.length }} {{ t("activeCalls") }}
-          </span>
-          <span class="stat request-count" v-if="store.pendingRequestsCount > 0">
-            🙋 {{ store.pendingRequestsCount }} {{ t("requests") }}
-          </span>
-        </div>
+        <div class="stats"></div>
       </div>
 
       <!-- Video Section -->
@@ -362,6 +350,38 @@
       </div>
     </div>
 
+    <!-- Settings Modal (Admin Only) -->
+    <div v-if="showSettingsModal && store.isServer" class="settings-modal-overlay" @click="showSettingsModal = false">
+      <div class="settings-modal" @click.stop>
+        <div class="settings-header">
+          <h3>⚙️ {{ t("uiSettings") }}</h3>
+          <button class="close-btn" @click="showSettingsModal = false">✕</button>
+        </div>
+        <div class="settings-content">
+          <div class="setting-group">
+            <label>{{ t("uiWidth") }}: {{ uiWidth }}px</label>
+            <input type="range" v-model.number="uiWidth" min="300" :max="maxWidth" step="10" class="size-slider" />
+            <div class="range-labels">
+              <span>300px</span>
+              <span>{{ maxWidth }}px</span>
+            </div>
+          </div>
+          <div class="setting-group">
+            <label>{{ t("uiHeight") }}: {{ uiHeight }}px</label>
+            <input type="range" v-model.number="uiHeight" min="300" :max="maxHeight" step="10" class="size-slider" />
+            <div class="range-labels">
+              <span>300px</span>
+              <span>{{ maxHeight }}px</span>
+            </div>
+          </div>
+          <div class="settings-actions">
+            <button class="reset-btn" @click="resetUISize">{{ t("reset") }}</button>
+            <button class="apply-btn" @click="applyUISize">{{ t("apply") }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Status Toast -->
     <div v-if="statusMessage" class="toast" :class="statusType">
       {{ statusMessage }}
@@ -380,6 +400,26 @@ import { getApiUrl } from "@/utils/utils";
 // i18n
 const { t, locale } = useI18n();
 const currentLocale = ref(locale.value);
+
+// ============================================
+// UI SETTINGS (ADMIN ONLY)
+// ============================================
+const showSettingsModal = ref(false);
+const uiWidth = ref(500);
+const uiHeight = ref(500);
+const maxWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1920);
+const maxHeight = ref(typeof window !== "undefined" ? window.innerHeight : 1080);
+
+// Computed style for container
+const containerStyle = computed(() => ({
+  width: `${store.constrainedWidth}px`,
+  height: `${store.constrainedHeight}px`,
+  minWidth: "300px",
+  minHeight: "300px",
+  maxWidth: "100vw",
+  maxHeight: "100vh",
+  transition: "width 0.3s ease, height 0.3s ease",
+}));
 
 // Store
 const store = appStore();
@@ -523,6 +563,14 @@ const initSocket = () => {
     console.log("🖥️ Admin/Server joined:", data);
     store.serverUserId = data.serverUserId;
     showStatus(t("adminJoined"), "success");
+  });
+
+  // UI size update (from admin)
+  socket.on("ui_size_update", (data: any) => {
+    console.log("🔧 UI size updated by admin:", data);
+    store.setUiSize(data.width, data.height);
+    uiWidth.value = data.width;
+    uiHeight.value = data.height;
   });
 
   // Client list update (for server)
@@ -1123,6 +1171,42 @@ const leaveRoom = async () => {
 };
 
 // ============================================
+// UI SIZE MANAGEMENT (ADMIN ONLY)
+// ============================================
+
+const resetUISize = () => {
+  uiWidth.value = 500;
+  uiHeight.value = 500;
+};
+
+const applyUISize = () => {
+  if (!store.isServer) {
+    showStatus(t("onlyAdminCanResize"), "error");
+    return;
+  }
+
+  // Update local store
+  store.setUiSize(uiWidth.value, uiHeight.value);
+
+  // Broadcast to all clients via Socket.IO
+  socket?.emit("admin_update_ui_size", {
+    width: uiWidth.value,
+    height: uiHeight.value,
+  });
+
+  showStatus(t("uiSizeUpdated"), "success");
+  showSettingsModal.value = false;
+};
+
+// Update max window sizes on resize
+if (typeof window !== "undefined") {
+  window.addEventListener("resize", () => {
+    maxWidth.value = window.innerWidth;
+    maxHeight.value = window.innerHeight;
+  });
+}
+
+// ============================================
 // UTILITIES
 // ============================================
 
@@ -1226,6 +1310,191 @@ onUnmounted(() => {
   color: #52c41a;
 }
 
+/* Settings Button (Admin Only) */
+.settings-button {
+  position: absolute;
+  top: 10px;
+  right: 100px;
+  z-index: 50;
+}
+
+.settings-btn {
+  background-color: transparent;
+  padding: 4px;
+  border: none;
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-btn:hover {
+  transform: rotate(45deg);
+}
+
+/* Settings Modal */
+.settings-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.settings-modal {
+  background: #1e1e1e;
+  border-radius: 12px;
+  padding: 0;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.settings-content {
+  padding: 20px;
+}
+
+.setting-group {
+  margin-bottom: 24px;
+}
+
+.setting-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #fff;
+  font-weight: 500;
+}
+
+.size-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #52c41a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.size-slider::-webkit-slider-thumb:hover {
+  background: #73d13d;
+  transform: scale(1.2);
+}
+
+.size-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #52c41a;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.size-slider::-moz-range-thumb:hover {
+  background: #73d13d;
+  transform: scale(1.2);
+}
+
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.reset-btn,
+.apply-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.reset-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.apply-btn {
+  background: #52c41a;
+  color: #fff;
+}
+
+.apply-btn:hover {
+  background: #73d13d;
+}
+
 /* Loading State */
 .loading-state {
   display: flex;
@@ -1292,6 +1561,7 @@ onUnmounted(() => {
 .stats {
   display: flex;
   gap: 8px;
+  height: 25px;
   flex-wrap: wrap;
 }
 
