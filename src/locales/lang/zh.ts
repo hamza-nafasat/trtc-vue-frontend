@@ -91,8 +91,8 @@ export default {
   // ================================
 
   // Connection
-  connected: "已连接",
-  disconnected: "已断开",
+  connected: "",
+  disconnected: "",
 
   // Role Selection
   oneToOneTalk: "一对一通话系统",
