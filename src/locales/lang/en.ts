@@ -57,6 +57,8 @@ export default {
   micUnmuted: "Microphone unmuted",
   cameraOff: "Camera off",
   cameraOn: "Camera on",
+  waitingForAdmin: "Waiting for admin to join...",
+  adminJoined: "Admin has joined the room!",
 
   // Errors
   enterBothIds: "Please enter both User ID and Room ID",

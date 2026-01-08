@@ -90,7 +90,7 @@
               </div>
               <div class="join-actions">
                 <button class="join-btn" @click="joinRoom" :disabled="!userId || !password">
-                  {{ t("join") }}
+                  {{ userId === "admin" ? t("create") : t("join") }}
                 </button>
                 <button
                   class="cancel-btn"
@@ -504,12 +504,25 @@ const initSocket = () => {
 
     isInRoom.value = true;
     joining.value = false; // Turn off loading when successfully joined
-    showStatus(t("joinedSuccessfully"), "success");
+
+    // Check if client joined but no admin/server is present
+    if (data.role === "client" && !data.serverPresent) {
+      showStatus(t("waitingForAdmin"), "info");
+    } else {
+      showStatus(t("joinedSuccessfully"), "success");
+    }
 
     // If server, start publishing
     if (data.role === "server") {
       await startServerPublishing();
     }
+  });
+
+  // Server joined notification (for waiting clients)
+  socket.on("server_joined", (data: any) => {
+    console.log("🖥️ Admin/Server joined:", data);
+    store.serverUserId = data.serverUserId;
+    showStatus(t("adminJoined"), "success");
   });
 
   // Client list update (for server)
@@ -1777,6 +1790,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
+  margin-top: 35px; /* Add space to avoid overlap with connection status */
   flex-shrink: 0;
 }
 

@@ -57,6 +57,8 @@ export default {
   micUnmuted: "麦克风已取消静音",
   cameraOff: "摄像头已关闭",
   cameraOn: "摄像头已打开",
+  waitingForAdmin: "等待管理员加入...",
+  adminJoined: "管理员已加入房间！",
 
   // Errors
   enterBothIds: "请输入用户ID和房间号",
