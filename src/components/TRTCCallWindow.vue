@@ -6,14 +6,14 @@
       <button class="lang-btn" :class="{ active: currentLocale === 'zh' }" @click="changeLanguage('zh')">中文</button>
     </div>
 
-    <!-- Settings Button (Admin Only) -->
-    <div v-if="store.isServer" class="settings-button">
-      <button class="settings-btn" @click="showSettingsModal = true" :title="t('settings')">⚙️</button>
-    </div>
-
     <!-- Connection Status (for clients only) -->
     <div v-if="isInRoom && store.isClient" class="connection-status" :class="{ connected: store.socketConnected }">
       {{ store.socketConnected ? "🟢" : "🔴" }} {{ store.socketConnected ? t("connected") : t("disconnected") }}
+    </div>
+
+    <!-- Settings Button (Admin Only) -->
+    <div v-if="store.isServer" class="settings-button">
+      <button class="settings-btn" @click="showSettingsModal = true" :title="t('settings')">⚙️</button>
     </div>
 
     <!-- Device Status Legend (shows when in room) -->
@@ -1698,7 +1698,7 @@ onUnmounted(() => {
 .settings-button {
   position: absolute;
   top: 10px;
-  right: 100px;
+  left: 10px; /* Position on the left side with connection status */
   z-index: 50;
 }
 
@@ -1953,6 +1953,7 @@ onUnmounted(() => {
   gap: var(--spacing-sm);
   height: auto;
   align-items: flex-start; /* Align to left */
+  padding-left: calc(40px * var(--font-scale)); /* Make room for settings button */
 }
 
 /* Connection Status Inline (in dashboard header) */
