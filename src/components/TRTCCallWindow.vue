@@ -467,15 +467,38 @@ const maxWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1920);
 const maxHeight = ref(typeof window !== "undefined" ? window.innerHeight : 1080);
 
 // Computed style for container
-const containerStyle = computed(() => ({
-  width: `${store.constrainedWidth}px`,
-  height: `${store.constrainedHeight}px`,
-  minWidth: "300px",
-  minHeight: "300px",
-  maxWidth: "100vw",
-  maxHeight: "100vh",
-  transition: "width 0.3s ease, height 0.3s ease",
-}));
+const containerStyle = computed(() => {
+  const width = store.constrainedWidth;
+
+  // Calculate font scale based on width
+  // Extended range: 300px - 1600px+ with 6 breakpoints
+  let fontScale = 1;
+  if (width >= 1501) {
+    fontScale = 1.6; // Extra large: ≥1501px
+  } else if (width >= 1301) {
+    fontScale = 1.4; // Large: 1301-1500px
+  } else if (width >= 901) {
+    fontScale = 1.2; // Medium: 901-1300px
+  } else if (width >= 501) {
+    fontScale = 1.0; // Base: 501-900px
+  } else if (width >= 401) {
+    fontScale = 0.85; // Small: 401-500px (15% smaller)
+  } else {
+    fontScale = 0.7; // Extra small: 300-400px (30% smaller)
+  }
+
+  return {
+    width: `${width}px`,
+    height: `${store.constrainedHeight}px`,
+    minWidth: "300px",
+    minHeight: "300px",
+    maxWidth: "100vw",
+    maxHeight: "100vh",
+    transition: "width 0.3s ease, height 0.3s ease",
+    // Set CSS variable directly for immediate scaling
+    "--font-scale": fontScale.toString(),
+  };
+});
 
 // Store
 const store = appStore();
@@ -1416,13 +1439,83 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* ============================================
+   CONTAINER-BASED RESPONSIVE FONT SCALING
+   ============================================
+   
+   This system scales ALL typography based on the container's width,
+   not the viewport. It works dynamically when the container resizes.
+   
+   Breakpoints (based on container width):
+   - 300-400px: Scale down by 30% (--font-scale: 0.7)  [Extra Small]
+   - 401-500px: Scale down by 15% (--font-scale: 0.85) [Small]
+   - 501-900px: Base font sizes (--font-scale: 1.0)    [Base/Normal]
+   - 901-1300px: Scale up by 20% (--font-scale: 1.2)   [Medium]
+   - 1301-1500px: Scale up by 40% (--font-scale: 1.4)  [Large]
+   - ≥ 1501px: Scale up by 60% (--font-scale: 1.6)     [Extra Large]
+   
+   All font sizes use calc() with CSS variables for automatic scaling.
+*/
+
 .trtc-container {
+  /* Enable container queries on this element */
+  container-type: inline-size;
+  container-name: trtc-app;
+
+  /* Default scaling factor (≤ 900px) */
+  --font-scale: 1;
+
+  /* Base font sizes (these will be multiplied by --font-scale) */
+  --base-font-xs: 8px;
+  --base-font-sm: 10px;
+  --base-font-md: 11px;
+  --base-font-base: 12px;
+  --base-font-lg: 14px;
+  --base-font-xl: 16px;
+  --base-font-2xl: 18px;
+  --base-font-3xl: 24px;
+  --base-font-4xl: 32px;
+
+  /* Computed font sizes (automatically scale with --font-scale) */
+  --font-xs: calc(var(--base-font-xs) * var(--font-scale));
+  --font-sm: calc(var(--base-font-sm) * var(--font-scale));
+  --font-md: calc(var(--base-font-md) * var(--font-scale));
+  --font-base: calc(var(--base-font-base) * var(--font-scale));
+  --font-lg: calc(var(--base-font-lg) * var(--font-scale));
+  --font-xl: calc(var(--base-font-xl) * var(--font-scale));
+  --font-2xl: calc(var(--base-font-2xl) * var(--font-scale));
+  --font-3xl: calc(var(--base-font-3xl) * var(--font-scale));
+  --font-4xl: calc(var(--base-font-4xl) * var(--font-scale));
+
+  /* Base spacing units (also scale with container) */
+  --spacing-xs: calc(4px * var(--font-scale));
+  --spacing-sm: calc(6px * var(--font-scale));
+  --spacing-md: calc(8px * var(--font-scale));
+  --spacing-lg: calc(10px * var(--font-scale));
+  --spacing-xl: calc(12px * var(--font-scale));
+
+  /* Icon sizes */
+  --icon-sm: calc(8px * var(--font-scale));
+  --icon-md: calc(10px * var(--font-scale));
+  --icon-lg: calc(12px * var(--font-scale));
+
+  /* Sidebar width (scales with container) */
+  --sidebar-width: calc(180px * var(--font-scale));
+
+  /* PIP video dimensions (scales with container) */
+  --pip-width: calc(125px * var(--font-scale));
+  --pip-height: calc(100px * var(--font-scale));
+
+  /* Default size - will be overridden by inline styles when changed dynamically */
   width: 500px;
-  min-width: 500px;
-  max-width: 500px;
   height: 500px;
-  min-height: 500px;
-  max-height: 500px;
+
+  /* Allow dynamic sizing */
+  min-width: 300px;
+  min-height: 300px;
+  max-width: 100vw;
+  max-height: 100vh;
+
   background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
   display: flex;
   flex-direction: column;
@@ -1434,6 +1527,55 @@ onUnmounted(() => {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   padding: 10px;
   box-sizing: border-box;
+  transition:
+    width 0.3s ease,
+    height 0.3s ease;
+}
+
+/* Container Query Breakpoints - Scale font sizes based on container width
+   Note: These work as fallback. The inline style from containerStyle computed
+   property takes precedence for dynamic resizing via settings button. */
+
+/* Breakpoint 1: 300-400px → Scale down by 30% (extra small) */
+@container trtc-app (min-width: 300px) and (max-width: 400px) {
+  .trtc-container {
+    --font-scale: 0.7;
+  }
+}
+
+/* Breakpoint 2: 401-500px → Scale down by 15% (small) */
+@container trtc-app (min-width: 401px) and (max-width: 500px) {
+  .trtc-container {
+    --font-scale: 0.85;
+  }
+}
+
+/* Breakpoint 3: 501-900px → Base scale (no change) */
+@container trtc-app (min-width: 501px) and (max-width: 900px) {
+  .trtc-container {
+    --font-scale: 1;
+  }
+}
+
+/* Breakpoint 4: 901-1300px → Scale up by 20% (medium) */
+@container trtc-app (min-width: 901px) and (max-width: 1300px) {
+  .trtc-container {
+    --font-scale: 1.2;
+  }
+}
+
+/* Breakpoint 5: 1301-1500px → Scale up by 40% (large) */
+@container trtc-app (min-width: 1301px) and (max-width: 1500px) {
+  .trtc-container {
+    --font-scale: 1.4;
+  }
+}
+
+/* Breakpoint 6: ≥ 1501px → Scale up by 60% (extra large, maximum) */
+@container trtc-app (min-width: 1501px) {
+  .trtc-container {
+    --font-scale: 1.6;
+  }
 }
 
 /* Language Switcher */
@@ -1442,19 +1584,19 @@ onUnmounted(() => {
   top: 10px;
   right: 10px;
   display: flex;
-  gap: 4px;
+  gap: var(--spacing-xs);
   background: rgba(20, 20, 20, 0.8);
   border-radius: 20px;
-  padding: 4px;
+  padding: var(--spacing-xs);
   z-index: 50;
 }
 
 .lang-btn {
-  padding: 4px 10px;
+  padding: var(--spacing-xs) var(--spacing-lg);
   background: transparent;
   border: none;
   color: #999;
-  font-size: 11px;
+  font-size: var(--font-md);
   cursor: pointer;
   border-radius: 16px;
   transition: all 0.2s;
@@ -1475,10 +1617,10 @@ onUnmounted(() => {
   position: absolute;
   top: 10px;
   left: 10px;
-  font-size: 11px;
+  font-size: var(--font-md);
   color: #ff4d4f;
   background: rgba(0, 0, 0, 0.6);
-  padding: 3px 8px;
+  padding: calc(var(--spacing-xs) * 0.75) var(--spacing-md);
   border-radius: 12px;
   z-index: 50;
 }
@@ -1493,13 +1635,13 @@ onUnmounted(() => {
   bottom: 10px;
   left: 10px;
   background: rgba(0, 0, 0, 0.8);
-  padding: 8px 10px;
+  padding: var(--spacing-md) var(--spacing-lg);
   border-radius: 8px;
   z-index: 50;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 9px;
+  gap: var(--spacing-xs);
+  font-size: var(--font-sm);
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(4px);
 }
@@ -1507,13 +1649,13 @@ onUnmounted(() => {
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--spacing-sm);
   white-space: nowrap;
 }
 
 .legend-dot {
-  width: 6px;
-  height: 6px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   border-radius: 50%;
   display: inline-block;
   flex-shrink: 0;
@@ -1536,7 +1678,7 @@ onUnmounted(() => {
 
 .legend-text {
   color: #ccc;
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 
 /* Settings Button (Admin Only) */
@@ -1549,11 +1691,11 @@ onUnmounted(() => {
 
 .settings-btn {
   background-color: transparent;
-  padding: 4px;
+  padding: var(--spacing-xs);
   border: none;
-  width: 32px;
-  height: 32px;
-  font-size: 16px;
+  width: calc(32px * var(--font-scale));
+  height: calc(32px * var(--font-scale));
+  font-size: var(--font-xl);
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
@@ -1599,7 +1741,7 @@ onUnmounted(() => {
 
 .settings-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-2xl);
   font-weight: 600;
   color: #fff;
 }
@@ -1634,8 +1776,8 @@ onUnmounted(() => {
 
 .setting-group label {
   display: block;
-  margin-bottom: 8px;
-  font-size: 14px;
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-lg);
   color: #fff;
   font-weight: 500;
 }
@@ -1683,9 +1825,9 @@ onUnmounted(() => {
 .range-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: var(--font-md);
   color: #999;
-  margin-top: 4px;
+  margin-top: var(--spacing-xs);
 }
 
 .settings-actions {
@@ -1697,10 +1839,10 @@ onUnmounted(() => {
 
 .reset-btn,
 .apply-btn {
-  padding: 8px 20px;
+  padding: var(--spacing-md) calc(var(--spacing-xl) * 2);
   border: none;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: var(--font-lg);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1736,13 +1878,13 @@ onUnmounted(() => {
 }
 
 .loading-spinner {
-  width: 30px;
-  height: 30px;
-  border: 3px solid rgba(255, 255, 255, 0.1);
+  width: calc(30px * var(--font-scale));
+  height: calc(30px * var(--font-scale));
+  border: calc(3px * var(--font-scale)) solid rgba(255, 255, 255, 0.1);
   border-top-color: #1890ff;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-bottom: 15px;
+  margin-bottom: calc(var(--spacing-xl) * 1.5);
 }
 
 @keyframes spin {
@@ -1753,7 +1895,12 @@ onUnmounted(() => {
 
 .loading-state p {
   color: #888;
-  font-size: 12px;
+  font-size: var(--font-base);
+}
+
+.loading-overlay p {
+  color: #fff;
+  font-size: var(--font-lg);
 }
 
 /* Role Selection */
@@ -1783,7 +1930,7 @@ onUnmounted(() => {
 }
 
 .dashboard-header h2 {
-  font-size: 16px;
+  font-size: var(--font-xl);
   font-weight: 600;
 }
 
@@ -1795,10 +1942,10 @@ onUnmounted(() => {
 }
 
 .stat {
-  font-size: 10px;
+  font-size: var(--font-sm);
   color: #888;
   background: rgba(255, 255, 255, 0.05);
-  padding: 4px 8px;
+  padding: var(--spacing-xs) var(--spacing-md);
   border-radius: 12px;
 }
 
@@ -1935,12 +2082,12 @@ onUnmounted(() => {
 }
 
 .placeholder-icon {
-  font-size: 32px;
-  margin-bottom: 8px;
+  font-size: var(--font-4xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .small-text {
-  font-size: 10px;
+  font-size: var(--font-sm);
   color: #444;
 }
 
@@ -1949,26 +2096,26 @@ onUnmounted(() => {
   bottom: 0px;
   left: 0px;
   background: rgba(0, 0, 0, 0.7);
-  padding: 1px 2px;
+  padding: calc(var(--spacing-xs) * 0.25) calc(var(--spacing-xs) * 0.5);
   border-radius: 4px;
-  font-size: 10px;
+  font-size: var(--font-sm);
 }
 
 .pip-video {
   position: absolute;
-  bottom: 3px;
-  right: 8px;
-  width: 125px;
-  height: 100px;
+  bottom: calc(3px * var(--font-scale));
+  right: calc(8px * var(--font-scale));
+  width: var(--pip-width);
+  height: var(--pip-height);
   background: #111;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--font-scale));
   overflow: hidden;
-  border: 2px solid #333;
+  border: calc(2px * var(--font-scale)) solid #333;
   z-index: 10;
 }
 
 .pip-video.active-client {
-  right: 110px;
+  right: calc(var(--pip-width) + (10px * var(--font-scale)));
 }
 
 /* Centered Toggle Button - Top Center */
@@ -2032,13 +2179,13 @@ onUnmounted(() => {
   z-index: 150;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
   background: rgba(0, 0, 0, 0.8);
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 8px;
   color: white;
-  font-size: 11px;
+  font-size: var(--font-md);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -2060,7 +2207,7 @@ onUnmounted(() => {
 }
 
 .sidebar-toggle-top .toggle-icon {
-  font-size: 12px;
+  font-size: var(--font-base);
   transition: transform 0.3s ease;
 }
 
@@ -2074,8 +2221,8 @@ onUnmounted(() => {
 .client-sidebar {
   position: absolute;
   top: 0;
-  right: -180px;
-  width: 180px;
+  right: calc(var(--sidebar-width) * -1); /* Hide offscreen, scales with container */
+  width: var(--sidebar-width); /* Scales with container */
   height: 100%;
   background: rgba(0, 0, 0, 0.9);
   border-left: 1px solid rgba(255, 255, 255, 0.1);
@@ -2101,23 +2248,23 @@ onUnmounted(() => {
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
-  padding: 12px;
+  padding: var(--spacing-xl);
 }
 
 .sidebar-title {
-  font-size: 12px;
-  margin-bottom: 12px;
+  font-size: var(--font-base);
+  margin-bottom: var(--spacing-xl);
   color: #fff;
   font-weight: 600;
   flex-shrink: 0;
-  padding-bottom: 8px;
+  padding-bottom: var(--spacing-md);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .client-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-md);
   overflow-y: auto;
   flex: 1;
   min-height: 0;
@@ -2126,8 +2273,8 @@ onUnmounted(() => {
 .client-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
   background: rgba(255, 255, 255, 0.05);
   border-radius: 6px;
   transition: all 0.2s;
@@ -2148,7 +2295,7 @@ onUnmounted(() => {
 }
 
 .user-name {
-  font-size: 11px;
+  font-size: var(--font-md);
   font-weight: 500;
   color: #fff;
   overflow: hidden;
@@ -2158,10 +2305,10 @@ onUnmounted(() => {
 
 .client-action-btn {
   width: 100%;
-  padding: 6px 12px;
+  padding: var(--spacing-sm) var(--spacing-xl);
   border: none;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: var(--font-sm);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -2189,8 +2336,8 @@ onUnmounted(() => {
 .empty-state {
   text-align: center;
   color: #666;
-  padding: 20px 10px;
-  font-size: 10px;
+  padding: calc(var(--spacing-xl) * 2) var(--spacing-lg);
+  font-size: var(--font-sm);
   flex: 1;
   display: flex;
   align-items: center;
@@ -2198,11 +2345,11 @@ onUnmounted(() => {
 }
 
 .invited-status {
-  padding: 6px 12px;
+  padding: var(--spacing-sm) var(--spacing-xl);
   background: rgba(250, 173, 20, 0.2);
   color: #faad14;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: var(--font-sm);
   font-weight: 500;
   text-align: center;
   width: 100%;
@@ -2224,11 +2371,11 @@ onUnmounted(() => {
 .control-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-xl);
   border: none;
   border-radius: 6px;
-  font-size: 10px;
+  font-size: var(--font-sm);
   cursor: pointer;
   transition: all 0.2s;
   background: rgba(255, 255, 255, 0.1);
@@ -2243,11 +2390,11 @@ onUnmounted(() => {
 
 /* Status indicator dot */
 .status-indicator {
-  width: 8px;
-  height: 8px;
+  width: var(--icon-md);
+  height: var(--icon-md);
   border-radius: 50%;
   display: inline-block;
-  margin-right: 2px;
+  margin-right: calc(var(--spacing-xs) * 0.5);
   box-shadow: 0 0 4px currentColor;
   animation: pulse-glow 2s ease-in-out infinite;
 }
@@ -2321,10 +2468,10 @@ onUnmounted(() => {
 .call-status {
   display: flex;
   align-items: center;
-  font-size: 10px;
+  font-size: var(--font-sm);
   color: #52c41a;
   background: rgba(82, 196, 26, 0.1);
-  padding: 6px 12px;
+  padding: var(--spacing-sm) var(--spacing-xl);
   border-radius: 6px;
 }
 
@@ -2346,7 +2493,7 @@ onUnmounted(() => {
 }
 
 .client-header h2 {
-  font-size: 16px;
+  font-size: var(--font-xl);
   font-weight: 600;
 }
 
@@ -2356,10 +2503,10 @@ onUnmounted(() => {
 }
 
 .server-status {
-  font-size: 10px;
+  font-size: var(--font-sm);
   color: #52c41a;
   background: rgba(82, 196, 26, 0.1);
-  padding: 4px 8px;
+  padding: var(--spacing-xs) var(--spacing-md);
   border-radius: 12px;
 }
 
@@ -2385,15 +2532,15 @@ onUnmounted(() => {
 
 .modal-content {
   background: #1f1f1f;
-  padding: 24px;
+  padding: calc(var(--spacing-xl) * 2);
   border-radius: 12px;
   text-align: center;
-  max-width: 280px;
+  max-width: calc(280px * var(--font-scale));
 }
 
 .invitation-icon {
-  font-size: 36px;
-  margin-bottom: 12px;
+  font-size: var(--font-4xl);
+  margin-bottom: var(--spacing-xl);
   animation: pulse 1s infinite;
 }
 
@@ -2408,28 +2555,28 @@ onUnmounted(() => {
 }
 
 .modal-content h3 {
-  font-size: 16px;
-  margin-bottom: 6px;
+  font-size: var(--font-xl);
+  margin-bottom: var(--spacing-sm);
 }
 
 .modal-content p {
   color: #888;
-  font-size: 12px;
-  margin-bottom: 16px;
+  font-size: var(--font-base);
+  margin-bottom: var(--spacing-xl);
 }
 
 .invitation-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--spacing-md);
 }
 
 .btn-decline,
 .btn-accept {
   flex: 1;
-  padding: 10px;
+  padding: var(--spacing-lg);
   border: none;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--font-base);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -2459,11 +2606,11 @@ onUnmounted(() => {
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 10px 20px;
+  padding: var(--spacing-lg) calc(var(--spacing-xl) * 2);
   border-radius: 6px;
-  font-size: 11px;
+  font-size: var(--font-md);
   z-index: 2000;
-  max-width: 300px;
+  max-width: calc(300px * var(--font-scale));
   text-align: center;
   animation: slideDown 0.3s ease;
 }
@@ -2531,8 +2678,8 @@ onUnmounted(() => {
 }
 
 .requests-title {
-  font-size: 11px;
-  margin-bottom: 8px;
+  font-size: var(--font-md);
+  margin-bottom: var(--spacing-md);
   color: #fff;
   font-weight: 600;
   flex-shrink: 0;
@@ -2541,7 +2688,7 @@ onUnmounted(() => {
 .requests-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--spacing-sm);
   overflow-y: auto;
   flex: 1;
   min-height: 0;
@@ -2551,15 +2698,15 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 8px;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
   background: rgba(255, 255, 255, 0.05);
   border-radius: 6px;
-  font-size: 10px;
+  font-size: var(--font-sm);
 }
 
 .request-user-name {
-  font-size: 10px;
+  font-size: var(--font-sm);
   font-weight: 500;
   color: #fff;
   overflow: hidden;
@@ -2571,15 +2718,15 @@ onUnmounted(() => {
 
 .request-actions {
   display: flex;
-  gap: 4px;
+  gap: var(--spacing-xs);
   flex-shrink: 0;
 }
 
 .request-btn {
-  padding: 4px 8px;
+  padding: var(--spacing-xs) var(--spacing-md);
   border: none;
   border-radius: 4px;
-  font-size: 9px;
+  font-size: var(--font-xs);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -2607,8 +2754,8 @@ onUnmounted(() => {
 .requests-empty {
   text-align: center;
   color: #666;
-  padding: 10px;
-  font-size: 10px;
+  padding: var(--spacing-lg);
+  font-size: var(--font-sm);
   flex: 1;
   display: flex;
   align-items: center;
@@ -2643,27 +2790,20 @@ onUnmounted(() => {
     display: none;
   }
 
-  .pip-video {
-    width: 80px;
-    height: 60px;
-  }
-
-  .pip-video.active-client {
-    right: 90px;
-  }
+  /* PIP video sizes are now handled by CSS variables and scale automatically */
 }
 
 /* Client self video - in same line as other active clients */
 .pip-video.client-self {
   position: absolute;
-  bottom: 3px;
-  right: 8px;
-  width: 125px;
-  height: 100px;
+  bottom: calc(3px * var(--font-scale));
+  right: calc(8px * var(--font-scale));
+  width: var(--pip-width);
+  height: var(--pip-height);
   background: #111;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--font-scale));
   overflow: hidden;
-  border: 2px solid #52c41a; /* Green border to indicate it's you */
+  border: calc(2px * var(--font-scale)) solid #52c41a; /* Green border to indicate it's you */
   z-index: 15;
 }
 
@@ -2882,12 +3022,12 @@ onUnmounted(() => {
 }
 
 .join-room-main-btn {
-  padding: 16px 40px;
+  padding: calc(var(--spacing-xl) * 1.5) calc(var(--spacing-xl) * 3.5);
   background: linear-gradient(90deg, #1890ff, #40a9ff);
   border: none;
   border-radius: 12px;
   color: white;
-  font-size: 18px;
+  font-size: var(--font-2xl);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
@@ -2901,30 +3041,30 @@ onUnmounted(() => {
 
 .join-form-overlay {
   background: rgba(30, 30, 30, 0.95);
-  padding: 30px;
+  padding: calc(var(--spacing-xl) * 2.5);
   border-radius: 16px;
-  min-width: 280px;
+  min-width: calc(280px * var(--font-scale));
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .join-form-content h3 {
-  font-size: 18px;
-  margin-bottom: 20px;
+  font-size: var(--font-2xl);
+  margin-bottom: calc(var(--spacing-xl) * 2);
   color: white;
 }
 
 .join-form-content .input-group {
-  margin-bottom: 20px;
+  margin-bottom: calc(var(--spacing-xl) * 2);
 }
 
 .join-form-content .input-group input {
   width: 100%;
-  padding: 12px 16px;
+  padding: var(--spacing-xl) calc(var(--spacing-xl) * 1.5);
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   color: white;
-  font-size: 14px;
+  font-size: var(--font-lg);
   box-sizing: border-box;
 }
 
@@ -2935,17 +3075,17 @@ onUnmounted(() => {
 
 .join-form-content .join-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-xl);
 }
 
 .join-form-content .join-btn {
   flex: 1;
-  padding: 12px 24px;
+  padding: var(--spacing-xl) calc(var(--spacing-xl) * 2);
   background: linear-gradient(90deg, #1890ff, #40a9ff);
   border: none;
   border-radius: 8px;
   color: white;
-  font-size: 14px;
+  font-size: var(--font-lg);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -2963,12 +3103,12 @@ onUnmounted(() => {
 
 .join-form-content .cancel-btn {
   flex: 1;
-  padding: 12px 24px;
+  padding: var(--spacing-xl) calc(var(--spacing-xl) * 2);
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   color: white;
-  font-size: 14px;
+  font-size: var(--font-lg);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
