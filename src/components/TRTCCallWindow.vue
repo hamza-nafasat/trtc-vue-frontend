@@ -16,6 +16,22 @@
       {{ store.socketConnected ? "🟢" : "🔴" }} {{ store.socketConnected ? t("connected") : t("disconnected") }}
     </div>
 
+    <!-- Device Status Legend (shows when in room) -->
+    <!-- <div v-if="isInRoom" class="device-status-legend" :title="t('deviceStatusHelp')">
+      <div class="legend-item">
+        <span class="legend-dot red"></span>
+        <span class="legend-text">{{ t("deviceStatusRed") }}</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot yellow"></span>
+        <span class="legend-text">{{ t("deviceStatusYellow") }}</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot green"></span>
+        <span class="legend-text">{{ t("deviceStatusGreen") }}</span>
+      </div>
+    </div> -->
+
     <!-- Join Room Preview Interface (shows same UI structure) -->
     <div v-if="!isInRoom" class="join-preview">
       <!-- Preview Header -->
@@ -225,10 +241,30 @@
         <!-- Left Half: Control Buttons -->
         <div class="controls-section buttons-section">
           <div class="server-controls">
-            <button class="control-btn mic" :class="{ muted: isMicMuted }" @click="toggleMic">
+            <button
+              class="control-btn mic"
+              :class="{
+                muted: isMicMuted,
+                'status-red': store.deviceStatus.microphone === 'red',
+                'status-yellow': store.deviceStatus.microphone === 'yellow',
+                'status-green': store.deviceStatus.microphone === 'green',
+              }"
+              @click="toggleMic"
+            >
+              <span class="status-indicator" :class="`status-${store.deviceStatus.microphone}`"></span>
               {{ isMicMuted ? "🔇" : "🎤" }} {{ t("mic") }}
             </button>
-            <button class="control-btn camera" :class="{ muted: isCameraMuted }" @click="toggleCamera">
+            <button
+              class="control-btn camera"
+              :class="{
+                muted: isCameraMuted,
+                'status-red': store.deviceStatus.camera === 'red',
+                'status-yellow': store.deviceStatus.camera === 'yellow',
+                'status-green': store.deviceStatus.camera === 'green',
+              }"
+              @click="toggleCamera"
+            >
+              <span class="status-indicator" :class="`status-${store.deviceStatus.camera}`"></span>
               {{ isCameraMuted ? "📷" : "📷" }} {{ t("camera") }}
             </button>
             <button class="control-btn leave" @click="leaveRoom">🚪 {{ t("leave") }}</button>
@@ -333,10 +369,30 @@
 
         <!-- Active Call Controls -->
         <template v-if="store.isActiveClient">
-          <button class="control-btn mic" :class="{ muted: isMicMuted }" @click="toggleMic">
+          <button
+            class="control-btn mic"
+            :class="{
+              muted: isMicMuted,
+              'status-red': store.deviceStatus.microphone === 'red',
+              'status-yellow': store.deviceStatus.microphone === 'yellow',
+              'status-green': store.deviceStatus.microphone === 'green',
+            }"
+            @click="toggleMic"
+          >
+            <span class="status-indicator" :class="`status-${store.deviceStatus.microphone}`"></span>
             {{ isMicMuted ? "🔇" : "🎤" }} {{ t("mic") }}
           </button>
-          <button class="control-btn camera" :class="{ muted: isCameraMuted }" @click="toggleCamera">
+          <button
+            class="control-btn camera"
+            :class="{
+              muted: isCameraMuted,
+              'status-red': store.deviceStatus.camera === 'red',
+              'status-yellow': store.deviceStatus.camera === 'yellow',
+              'status-green': store.deviceStatus.camera === 'green',
+            }"
+            @click="toggleCamera"
+          >
+            <span class="status-indicator" :class="`status-${store.deviceStatus.camera}`"></span>
             {{ isCameraMuted ? "📷" : "📹" }} {{ t("camera") }}
           </button>
         </template>
@@ -490,6 +546,12 @@ const userId = ref(""); // Will be set with default when join form shows
 const password = ref(""); // Password for authentication
 const showJoinForm = ref(false); // Control join form visibility
 
+// Device status monitoring
+const cameraPermissionGranted = ref(false);
+const microphonePermissionGranted = ref(false);
+const cameraDeviceAvailable = ref(false);
+const microphoneDeviceAvailable = ref(false);
+
 // Socket and TRTC
 let socket: Socket | null = null;
 let trtc: any = null;
@@ -499,6 +561,98 @@ let fixedRoomId = "";
 
 // Track remote users for TRTC
 const remoteUsers = ref<Map<string, { videoAvailable: boolean; audioAvailable: boolean }>>(new Map());
+
+// ============================================
+// DEVICE STATUS MONITORING
+// ============================================
+
+// Check device permissions and availability
+const checkDeviceStatus = async () => {
+  try {
+    // Check if devices are available
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices.filter((d) => d.kind === "videoinput");
+    const microphones = devices.filter((d) => d.kind === "audioinput");
+
+    cameraDeviceAvailable.value = cameras.length > 0;
+    microphoneDeviceAvailable.value = microphones.length > 0;
+
+    // Check permissions
+    try {
+      const permissionStatus = await navigator.permissions.query({ name: "camera" as PermissionName });
+      cameraPermissionGranted.value = permissionStatus.state === "granted";
+
+      permissionStatus.addEventListener("change", () => {
+        cameraPermissionGranted.value = permissionStatus.state === "granted";
+        updateDeviceStatusIndicators();
+      });
+    } catch (e) {
+      // Fallback: try to access camera to check permission
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        cameraPermissionGranted.value = true;
+        stream.getTracks().forEach((track) => track.stop());
+      } catch (err) {
+        cameraPermissionGranted.value = false;
+      }
+    }
+
+    try {
+      const permissionStatus = await navigator.permissions.query({ name: "microphone" as PermissionName });
+      microphonePermissionGranted.value = permissionStatus.state === "granted";
+
+      permissionStatus.addEventListener("change", () => {
+        microphonePermissionGranted.value = permissionStatus.state === "granted";
+        updateDeviceStatusIndicators();
+      });
+    } catch (e) {
+      // Fallback: try to access microphone to check permission
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        microphonePermissionGranted.value = true;
+        stream.getTracks().forEach((track) => track.stop());
+      } catch (err) {
+        microphonePermissionGranted.value = false;
+      }
+    }
+
+    updateDeviceStatusIndicators();
+  } catch (error) {
+    console.error("Error checking device status:", error);
+  }
+};
+
+// Update device status indicators based on current state
+const updateDeviceStatusIndicators = () => {
+  // Camera status logic
+  if (!cameraDeviceAvailable.value || !cameraPermissionGranted.value) {
+    // Red: No device found or no permission
+    store.setCameraStatus("red");
+  } else if (isCameraMuted.value) {
+    // Yellow: Device available but not in use
+    store.setCameraStatus("yellow");
+  } else {
+    // Green: Device is actively in use
+    store.setCameraStatus("green");
+  }
+
+  // Microphone status logic
+  if (!microphoneDeviceAvailable.value || !microphonePermissionGranted.value) {
+    // Red: No device found or no permission
+    store.setMicrophoneStatus("red");
+  } else if (isMicMuted.value) {
+    // Yellow: Device available but not in use
+    store.setMicrophoneStatus("yellow");
+  } else {
+    // Green: Device is actively in use
+    store.setMicrophoneStatus("green");
+  }
+};
+
+// Watch for changes in mute status to update indicators
+watch([isMicMuted, isCameraMuted], () => {
+  updateDeviceStatusIndicators();
+});
 
 // ============================================
 // SOCKET.IO CONNECTION
@@ -1117,6 +1271,13 @@ const stopClientPublishing = async () => {
 
 const toggleMic = async () => {
   if (!trtc) return;
+
+  // Check if microphone is available before toggling
+  if (!microphonePermissionGranted.value || !microphoneDeviceAvailable.value) {
+    showStatus(t("microphoneNotAvailable"), "error");
+    return;
+  }
+
   isMicMuted.value = !isMicMuted.value;
 
   if (isMicMuted.value) {
@@ -1125,11 +1286,19 @@ const toggleMic = async () => {
     await trtc.startLocalAudio();
   }
 
+  updateDeviceStatusIndicators();
   showStatus(isMicMuted.value ? t("micMuted") : t("micUnmuted"), "info");
 };
 
 const toggleCamera = async () => {
   if (!trtc) return;
+
+  // Check if camera is available before toggling
+  if (!cameraPermissionGranted.value || !cameraDeviceAvailable.value) {
+    showStatus(t("cameraNotAvailable"), "error");
+    return;
+  }
+
   isCameraMuted.value = !isCameraMuted.value;
 
   const videoRef = store.isServer ? serverLocalVideoRef.value : clientLocalVideoRef.value;
@@ -1140,6 +1309,7 @@ const toggleCamera = async () => {
     await trtc.startLocalVideo({ view: videoRef, option: { profile: "480p" } });
   }
 
+  updateDeviceStatusIndicators();
   showStatus(isCameraMuted.value ? t("cameraOff") : t("cameraOn"), "info");
 };
 
@@ -1224,6 +1394,10 @@ const showStatus = (message: string, type: string = "info") => {
 
 onMounted(() => {
   initSocket();
+  checkDeviceStatus();
+
+  // Monitor device changes
+  navigator.mediaDevices.addEventListener("devicechange", checkDeviceStatus);
 });
 
 onUnmounted(() => {
@@ -1235,6 +1409,9 @@ onUnmounted(() => {
       socket = null;
     }
   }
+
+  // Clean up device monitoring
+  navigator.mediaDevices.removeEventListener("devicechange", checkDeviceStatus);
 });
 </script>
 
@@ -1308,6 +1485,58 @@ onUnmounted(() => {
 
 .connection-status.connected {
   color: #52c41a;
+}
+
+/* Device Status Legend */
+.device-status-legend {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 8px 10px;
+  border-radius: 8px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.legend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.legend-dot.red {
+  background: #ff4d4f;
+  box-shadow: 0 0 4px #ff4d4f;
+}
+
+.legend-dot.yellow {
+  background: #faad14;
+  box-shadow: 0 0 4px #faad14;
+}
+
+.legend-dot.green {
+  background: #52c41a;
+  box-shadow: 0 0 4px #52c41a;
+}
+
+.legend-text {
+  color: #ccc;
+  font-size: 8px;
 }
 
 /* Settings Button (Admin Only) */
@@ -2005,20 +2234,72 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.1);
   color: white;
   white-space: nowrap;
+  position: relative;
 }
 
 .control-btn:hover {
   background: rgba(255, 255, 255, 0.2);
 }
 
-.control-btn.mic,
-.control-btn.camera {
-  background: #52c41a;
+/* Status indicator dot */
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 2px;
+  box-shadow: 0 0 4px currentColor;
+  animation: pulse-glow 2s ease-in-out infinite;
 }
 
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.status-indicator.status-red {
+  background: #ff4d4f;
+  box-shadow: 0 0 6px #ff4d4f;
+}
+
+.status-indicator.status-yellow {
+  background: #faad14;
+  box-shadow: 0 0 6px #faad14;
+}
+
+.status-indicator.status-green {
+  background: #52c41a;
+  box-shadow: 0 0 6px #52c41a;
+}
+
+/* Button background colors based on status */
+.control-btn.mic.status-red,
+.control-btn.camera.status-red {
+  background: rgba(255, 77, 79, 0.3);
+  border: 1px solid #ff4d4f;
+}
+
+.control-btn.mic.status-yellow,
+.control-btn.camera.status-yellow {
+  background: rgba(250, 173, 20, 0.3);
+  border: 1px solid #faad14;
+}
+
+.control-btn.mic.status-green,
+.control-btn.camera.status-green {
+  background: rgba(82, 196, 26, 0.3);
+  border: 1px solid #52c41a;
+}
+
+/* Override for muted state (keeps the status indicator but changes button appearance) */
 .control-btn.mic.muted,
 .control-btn.camera.muted {
-  background: #ff4d4f;
+  opacity: 0.7;
 }
 
 .control-btn.request-talk {
@@ -2241,42 +2522,7 @@ onUnmounted(() => {
   width: 100%;
 }
 
-.control-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 6px;
-  font-size: 10px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  white-space: nowrap;
-}
-
-.control-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.control-btn.mic,
-.control-btn.camera {
-  background: #52c41a;
-}
-
-.control-btn.mic.muted,
-.control-btn.camera.muted {
-  background: #ff4d4f;
-}
-
-.control-btn.end-call {
-  background: #ff4d4f;
-}
-
-.control-btn.leave {
-  background: rgba(255, 255, 255, 0.1);
-}
+/* control-btn styles are defined earlier in the file - removed duplicate */
 
 /* Right Half: Requests Section */
 .requests-section {

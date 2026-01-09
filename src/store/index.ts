@@ -88,6 +88,13 @@ const appStore = defineStore("app", {
       width: 500, // Default 500px
       height: 500, // Default 500px
     },
+
+    // Device Status (for color indicators)
+    // red: no device/permission, yellow: device available but not in use, green: device in use
+    deviceStatus: {
+      camera: 'red' as 'red' | 'yellow' | 'green',
+      microphone: 'red' as 'red' | 'yellow' | 'green',
+    },
   }),
 
   getters: {
@@ -268,6 +275,15 @@ const appStore = defineStore("app", {
 
       this.uiSize.width = Math.max(minWidth, Math.min(width, maxWidth));
       this.uiSize.height = Math.max(minHeight, Math.min(height, maxHeight));
+    },
+
+    // Update device status
+    setCameraStatus(status: 'red' | 'yellow' | 'green') {
+      this.deviceStatus.camera = status;
+    },
+
+    setMicrophoneStatus(status: 'red' | 'yellow' | 'green') {
+      this.deviceStatus.microphone = status;
     },
   },
 });

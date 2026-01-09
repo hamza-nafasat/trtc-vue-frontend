@@ -196,4 +196,12 @@ export default {
   userIdAlreadyExists: "此用户ID已存在。请输入唯一的ID。",
   enterPassword: "输入密码",
   invalidCredentials: "无效的用户ID或密码。请检查您的凭据。",
+
+  // Device Status Messages
+  cameraNotAvailable: "摄像头不可用。请检查权限和设备连接。",
+  microphoneNotAvailable: "麦克风不可用。请检查权限和设备连接。",
+  deviceStatusRed: "无设备/权限",
+  deviceStatusYellow: "待机",
+  deviceStatusGreen: "活跃",
+  deviceStatusHelp: "设备状态：红色 = 无设备/权限，黄色 = 待机，绿色 = 活跃",
 };

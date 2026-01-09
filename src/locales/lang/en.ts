@@ -196,4 +196,12 @@ export default {
   userIdAlreadyExists: "This user ID already exists. Please enter a unique ID.",
   enterPassword: "Enter Password",
   invalidCredentials: "Invalid user ID or password. Please check your credentials.",
+
+  // Device Status Messages
+  cameraNotAvailable: "Camera not available. Please check permissions and device connection.",
+  microphoneNotAvailable: "Microphone not available. Please check permissions and device connection.",
+  deviceStatusRed: "No device/permission",
+  deviceStatusYellow: "Standby",
+  deviceStatusGreen: "Active",
+  deviceStatusHelp: "Device Status: Red = No device/permission, Yellow = Standby, Green = Active",
 };
