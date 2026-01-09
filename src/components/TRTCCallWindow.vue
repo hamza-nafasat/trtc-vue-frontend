@@ -11,8 +11,8 @@
       <button class="settings-btn" @click="showSettingsModal = true" :title="t('settings')">⚙️</button>
     </div>
 
-    <!-- Connection Status -->
-    <div class="connection-status" :class="{ connected: store.socketConnected }">
+    <!-- Connection Status (for clients only) -->
+    <div v-if="isInRoom && store.isClient" class="connection-status" :class="{ connected: store.socketConnected }">
       {{ store.socketConnected ? "🟢" : "🔴" }} {{ store.socketConnected ? t("connected") : t("disconnected") }}
     </div>
 
@@ -151,7 +151,14 @@
     <div v-if="isInRoom && store.isServer" class="server-dashboard">
       <!-- Header -->
       <div class="dashboard-header">
-        <div class="stats"></div>
+        <div class="stats">
+          <!-- Connection Status -->
+          <div class="connection-status-inline" :class="{ connected: store.socketConnected }">
+            {{ store.socketConnected ? "🟢" : "🔴" }} {{ store.socketConnected ? t("connected") : t("disconnected") }}
+          </div>
+          <!-- Server ID Badge -->
+          <div class="server-id-badge-inline">{{ t("server") }}: {{ store.userId }}</div>
+        </div>
       </div>
 
       <!-- Video Section -->
@@ -304,7 +311,7 @@
       <!-- Header -->
       <div class="client-header">
         <div class="status-info">
-          <span v-if="store.serverUserId" class="server-status"> 🖥️ {{ t("server") }}: {{ store.serverUserId }} </span>
+          <span v-if="store.serverUserId" class="server-status">{{ t("server") }}: {{ store.serverUserId }} </span>
           <span v-else class="server-status waiting"> ⏳ {{ t("waitingForServer") }} </span>
         </div>
       </div>
@@ -315,7 +322,7 @@
         <div class="main-video">
           <div ref="serverRemoteVideoRef" class="video-content">
             <!-- <div v-if="!store.serverIsPublishing" class="video-placeholder">
-              <div class="placeholder-icon">🖥️</div>
+              <div class="placeholder-icon"></div>
               <p>{{ t("serverVideo") }}</p>
               <p class="small-text">{{ t("waitingForServerVideo") }}</p>
             </div> -->
@@ -1942,9 +1949,33 @@ onUnmounted(() => {
 
 .stats {
   display: flex;
-  gap: 8px;
-  height: 25px;
-  flex-wrap: wrap;
+  flex-direction: column; /* Stack vertically */
+  gap: var(--spacing-sm);
+  height: auto;
+  align-items: flex-start; /* Align to left */
+}
+
+/* Connection Status Inline (in dashboard header) */
+.connection-status-inline {
+  font-size: var(--font-sm);
+  color: #ff4d4f;
+  background: rgba(0, 0, 0, 0.6);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: 12px;
+}
+
+.connection-status-inline.connected {
+  color: #52c41a;
+}
+
+/* Server ID Badge Inline (in dashboard header) */
+.server-id-badge-inline {
+  font-size: var(--font-sm);
+  color: #52c41a;
+  background: rgba(82, 196, 26, 0.1);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: 12px;
+  font-weight: 500;
 }
 
 .stat {
