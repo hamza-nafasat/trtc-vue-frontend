@@ -719,6 +719,12 @@ const initSocket = () => {
     // Set role from backend response
     store.setRole(data.role);
 
+    // Set UI size from server if provided
+    if (data.uiSize) {
+      console.log("📐 Received UI size from server:", data.uiSize);
+      store.setUiSize(data.uiSize.width, data.uiSize.height);
+    }
+
     isInRoom.value = true;
     joining.value = false; // Turn off loading when successfully joined
 
